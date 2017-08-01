@@ -4,8 +4,7 @@ CC ?= gcc
 
 SHARED := -fPIC --shared
 
-LUA_CLIB_PATH ?= ./skynet/luaclib
-
+LUA_CLIB_PATH ?= ./luaclib
 SKYNET_BUILD_PATH ?= ./skynet
 
 CFLAGS = -g -O2 -Wall -I$(LUA_INC) 
@@ -18,7 +17,7 @@ LUA_CLIB = cjson websocketnetpack clientwebsocket lfs
 
 all	: $(LUA_CLIB_PATH)/cjson.so $(LUA_CLIB_PATH)/websocketnetpack.so $(LUA_CLIB_PATH)/clientwebsocket.so $(LUA_CLIB_PATH)/lfs.so
 
-$(LUA_CLIB_PATH)/cjson.so : lua-cjson/fpconv.c lua-cjson/strbuf.c lua-cjson/lua_cjson.c | $(LUA_CLIB_PATH)
+$(LUA_CLIB_PATH)/cjson.so : lualib-src/lua-cjson/fpconv.c lualib-src/lua-cjson/strbuf.c lualib-src/lua-cjson/lua_cjson.c | $(LUA_CLIB_PATH)
 	$(CC) $(CFLAGS) $(SHARED) -Ilua-cjson $^ -o $@
 
 $(LUA_CLIB_PATH)/websocketnetpack.so : lualib-src/lua-websocketnetpack.c | $(LUA_CLIB_PATH)
@@ -27,7 +26,7 @@ $(LUA_CLIB_PATH)/websocketnetpack.so : lualib-src/lua-websocketnetpack.c | $(LUA
 $(LUA_CLIB_PATH)/clientwebsocket.so : lualib-src/lua-clientwebsocket.c | $(LUA_CLIB_PATH)
 	$(CC) $(CFLAGS) $(SHARED) $^ -o $@ -lpthread
 
-$(LUA_CLIB_PATH)/lfs.so : luafilesystem/src/lfs.c | $(LUA_CLIB_PATH)
+$(LUA_CLIB_PATH)/lfs.so : lualib-src/luafilesystem/src/lfs.c | $(LUA_CLIB_PATH)
 	$(CC) $(CFLAGS) $(SHARED) -Iluafilesystem/src $^ -o $@
 
 clean :

@@ -1,7 +1,9 @@
 app_root = "$ROOT/"
 skynet_root = "$SKYNET_ROOT/" 
 
-logpath = app_root.."run/"
+logpath = app_root.."log/"
+log_level = "info"
+
 
 thread = 4
 harbor = 0
@@ -12,17 +14,11 @@ runconfig = "runconfig"
 
 nodename = "node2"
 
---logger = "logd"
---logservice = "snlua"
---logfilename = "logtest"
---logfilemaxline = 2
-
-
 
 luaservice	= skynet_root.."service/?.lua;"..app_root.."service/?.lua;"
 lualoader	= skynet_root.."lualib/loader.lua"
 
-lua_path	= skynet_root.."lualib/?.lua;"..skynet_root.."lualib/compat10/?.lua;"..skynet_root.."lualib/?/init.lua;"..app_root.."etc/?.lua;"..app_root.."lualib/?.lua;"..app_root.."config/?.lua;"
+lua_path	= skynet_root.."lualib/?.lua;"..skynet_root.."lualib/compat10/?.lua;"..skynet_root.."lualib/?/init.lua;"..app_root.."etc/?.lua;"..app_root.."lualib/?.lua;"..app_root.."config/?.lua;"..app_root.."mod/?.lua;"
 
 lua_cpath	= skynet_root.."luaclib/?.so;"..app_root.."luaclib/?.so"
 cpath		= skynet_root.."cservice/?.so;"..app_root.."cservice/?.so"
@@ -30,6 +26,7 @@ cpath		= skynet_root.."cservice/?.so;"..app_root.."cservice/?.so"
 
 if $DAEMON then
 	daemon = app_root.."run/skynet.pid"
+	logger = "userlog"
 end
 
 

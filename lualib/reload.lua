@@ -298,8 +298,6 @@ end
 
 
 function reload.loadmod(mod)
-    init()
-
     local ret, func, obj = loadmod(mod, _ENV)
     if not ret then
         return false, "load mod false"

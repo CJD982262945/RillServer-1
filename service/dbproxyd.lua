@@ -1,3 +1,3 @@
 require "service"  
-require "dbproxy"
+require "dbproxy.dbproxy"
 

@@ -1,2 +1,2 @@
 require "service"
-require "setup"
+require "setup/setup"

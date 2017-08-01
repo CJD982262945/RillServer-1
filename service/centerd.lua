@@ -1,2 +1,2 @@
 require "service"
-require "center"
+require "center.center"

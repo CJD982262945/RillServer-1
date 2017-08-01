@@ -2,6 +2,8 @@ local skynet = require "skynet"
 local cluster = require "skynet.cluster"
 local log = require "log"
 require "skynet.manager"
+local libmove = require "libmove"
+
     
 local runconf = require(skynet.getenv("runconfig"))
 local servconf = runconf.service
@@ -12,6 +14,7 @@ skynet.start(function()
 	--集群信息
 	cluster.reload(runconf.cluster)
 	cluster.open(nodename)
+	
 	--开启debug_console服务
 	for i,v in pairs(servconf.debug_console) do
 		if nodename == v.node then
@@ -19,11 +22,13 @@ skynet.start(function()
 			log.debug("start debug_console in port: " .. v.port.."...")
 		end
 	end
-	--开启热更新模块
-    log.debug("start setupd...")
-    skynet.newservice("setupd")
+	
+	--开启配置模块
+	log.debug("start setupd...")
+	local p = skynet.newservice("setupd")
+	skynet.name("setupd", p)
 	--开启dbproxyd服务
-    for i,v in pairs(servconf.dbproxy) do
+	for i,v in pairs(servconf.dbproxy) do
 		local name = string.format("dbproxyd%d", i)
 		if nodename == v.node then
 			local p = skynet.newservice("dbproxyd")
@@ -34,7 +39,8 @@ skynet.start(function()
 			local proxy = cluster.proxy(v.node, name)
 			skynet.name(name, proxy)
 		end
-    end
+	end
+	
 	--开启centerd服务
 	for i,v in pairs(servconf.center) do
 		local name = string.format("centerd%d", i)
@@ -46,31 +52,37 @@ skynet.start(function()
 			local proxy = cluster.proxy(v.node, name)
 			skynet.name(name, proxy)
 		end
-    end
-	--开启login服务
-	for i,v in pairs(servconf.login) do
-		local name = string.format("logind%d", i)
+	end
+	
+	--开启global服务
+	for i,v in pairs(servconf.global) do
+		local name = string.format("globald%d", i)
 		if nodename == v.node then
-			local p = skynet.newservice("logind")
+			local p = skynet.newservice("globald")
 			skynet.name(name, p)
 			log.debug("start "..name.."...")
 		else
 			local proxy = cluster.proxy(v.node, name)
 			skynet.name(name, proxy)
 		end
-    end
-	--开启agentpool服务
-	for i,v in pairs(servconf.agentpool) do
+	end
+	
+	--开启login服务
+	for i,v in pairs(servconf.login) do
+		local name = string.format("logind%d", i)
 		if nodename == v.node then
-			local agentname = servconf.agentpool_common.name
-			local maxnum = servconf.agentpool_common.maxnum
-			local recyremove = servconf.agentpool_common.recyremove
-			local brokecachelen = servconf.agentpool_common.brokecachelen
-			agentpool = skynet.uniqueservice("agentpool", agentname, maxnum, recyremove, brokecachelen)
-			log.debug("start agent pool...")
+			local p = skynet.newservice("logind")
+			skynet.name(name, p)
+			skynet.call(p, "lua", "start", i)
+			log.debug("start "..name.."...")
+		else
+			local proxy = cluster.proxy(v.node, name)
+			skynet.name(name, proxy)
 		end
 	end
+	
 	--开启watchdog服务
+	--[[
 	for i,v in pairs(servconf.watchdog) do
 		if nodename == v.node then
 			local maxclient = servconf.watchdog_common.maxclient
@@ -84,8 +96,60 @@ skynet.start(function()
 			log.debug("start wswatchdog in port: " .. v.port) 
 		end
 	end
-	--room_mgr
-	
+	--]]
+	--开启gate服务
+	for i,v in pairs(servconf.gate) do
+		local name = string.format("gated%d", i)
+		if nodename == v.node then
+			local p = skynet.newservice("gated")
+			local c = servconf.gate_common
+			local g = servconf.gate[i]
+			skynet.name(name, p)
+			log.debug("start "..name.."...")
+			
+			skynet.call(p, "lua", "open", {
+				port = g.port,
+				maxclient = c.maxclient,
+				nodelay = c.nodelay,
+				name = name,
+			})
+			
+		else
+			local proxy = cluster.proxy(v.node, name)
+			skynet.name(name, proxy)
+		end
+	end
+	--开启game服务
+	for i,v in pairs(servconf.game) do
+		local name = string.format("gamed%d", i)
+		if nodename == v.node then
+			local p = skynet.newservice("gamed")
+			local c = servconf.game_common
+			local g = servconf.game[i]
+			skynet.name(name, p)
+			log.debug("start "..name.."...")
+		else
+			local proxy = cluster.proxy(v.node, name)
+			skynet.name(name, proxy)
+		end
+	end
+	--开启agentpool服务
+	--[[
+	for i,v in pairs(servconf.agentpool) do
+		if nodename == v.node then
+			local agentname = servconf.agentpool_common.name
+			local maxnum = servconf.agentpool_common.maxnum
+			local recyremove = servconf.agentpool_common.recyremove
+			local brokecachelen = servconf.agentpool_common.brokecachelen
+			agentpool = skynet.uniqueservice("agentpool", agentname, maxnum, recyremove, brokecachelen)
+			log.debug("start agent pool...")
+		end
+	end
+	--]]
+	--游戏测试，开启3个房间
+	libmove.create(1)
+	libmove.create(2)
+	libmove.create(3)
 	
 	--测试
     --skynet.uniqueservice("testd")
