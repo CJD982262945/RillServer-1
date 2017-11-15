@@ -77,13 +77,13 @@ local function handler(addr, fd)
 end
 
 function event.start()
-
-	if node ~= runconf.service.host_common.web.node then
+	local cfg = runconf.service.host_common.web
+	if node ~= cfg.node then
 		return
 	end
 	
-	local listenfd = socket.listen("0.0.0.0", 8111)
-	log.info("Listen web port 8111")
+	local listenfd = socket.listen("0.0.0.0", cfg.port)
+	log.info("Listen web port %d", cfg.port)
 	
 	socket.start(listenfd , function(fd, addr)
 		log.info("connected %s%d", addr, fd)

@@ -79,7 +79,8 @@ function CMD.kick(source, fd)
 	if c.uid then
 		fds[c.uid] = nil
 	end
-
+	connection[fd] = nil
+	gateserver.closeclient(fd)
 	return true
 end
 

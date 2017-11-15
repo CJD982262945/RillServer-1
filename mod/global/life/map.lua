@@ -1,22 +1,18 @@
-do return end
-
-
 local skynet = require "skynet"
 local log = require "log"
-local env = require "env"
 local libcenter = require "libcenter"
 local tool = require "tool"
 
-env.dispatch.life = env.dispatch.life or {}
-env.forward.life = env.forward.life or {}
-local D = env.dispatch.life
-local F = env.forward.life
-local ids = env.life.ids
-local rooms = env.life.rooms
-env.life.MAP_HEIGHT = 568 + 40 --40为下界冗余
-env.life.DEFAULT_SPEED = 40 --40.0每秒多少,40为一个格子
 
-env.life.buildcfg = {
+local faci = require "faci.module"
+local module, static = faci.get_module("life")
+local dispatch = module.dispatch
+local forward = module.forward
+
+static.MAP_HEIGHT = 568 + 40 --40为下界冗余
+static.DEFAULT_SPEED = 40 --40.0每秒多少,40为一个格子
+
+static.buildcfg = {
 	[201] = {"小学xxxx"},
 	[202] = {"小学xxxx"},
 	[203] = {"小学xxxx"},
@@ -42,7 +38,7 @@ local function get_random_building()
 	if not buildingmaping then
 		buildingmaping = {}
 		buildinglen = 0
-		for i, v in pairs(env.life.buildcfg) do
+		for i, v in pairs(static.buildcfg) do
 			table.insert(buildingmaping, i)
 		end
 		buildinglen = #buildingmaping
@@ -104,19 +100,19 @@ local function generate_row(room, row_id)
 end
 
 --返回row,index
-function env.life.coor2map(y, x)
+function static.coor2map(y, x)
 	local row = math.floor(y/40) + 1 
 	local index = math.floor(x/40) + 1 
 	return row, index
 end
 
-function env.life.updatemap(room, deltaTime)
+function static.updatemap(room, deltaTime)
 	--计算的坐标
 	room.top = room.top + room.descent_speed*deltaTime
 	--log.debug("updatemap top="..room.top.. "  \t\t"..deltaTime)
 	local bottom = room.top + 15*40
 	--生成新的
-	local brow, _ = env.life.coor2map(bottom, 0) --bottom_row
+	local brow, _ = static.coor2map(bottom, 0) --bottom_row
 	local newrows = nil
 	if not room.map[brow+1] then
 		newrows = generate_row(room, brow)
@@ -128,10 +124,10 @@ function env.life.updatemap(room, deltaTime)
 		for _, row in pairs(newrows) do
 			msg.rows[row] = room.map[row]
 		end
-		D.broadcast(room, "life.update_map", msg)
+		dispatch.broadcast(room, "life.update_map", msg)
 	end
 	--删除旧的
-	local trow, _ = env.life.coor2map(room.top, 0) --top_row
+	local trow, _ = static.coor2map(room.top, 0) --top_row
 	for i=trow-1, 1, -1 do
 		if room[trow] then
 			room[trow] = nil
@@ -141,14 +137,14 @@ function env.life.updatemap(room, deltaTime)
 	end
 end
 
-function env.life.init_map(room)
+function static.init_map(room)
 	for i = 1,16,3 do
 		generate_row(room, i-1)
 	end
 end
 
 --0-zero 1-floor 2-other
-function env.life.rowtype(row)
+function static.rowtype(row)
 	local zerocount = 0
 	for i=1, #row do
 		if row[i] == 0 then zerocount = zerocount + 1
@@ -158,13 +154,13 @@ function env.life.rowtype(row)
 	if zerocount == #row then return 0
 	else return 1 end
 end
-function env.life.born_point(room)
+function static.born_point(room)
 	--row 从中间段选取空的一行
 	local y = 0
 	local row = 0
-	local trow, _ = env.life.coor2map(room.top, 0)
+	local trow, _ = static.coor2map(room.top, 0)
 	for i=trow+6, trow+13 do
-		if env.life.rowtype(room.map[i]) == 0 then
+		if static.rowtype(room.map[i]) == 0 then
 			row = i
 			y = (i-1)*40
 			break

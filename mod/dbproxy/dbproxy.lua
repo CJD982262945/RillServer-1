@@ -31,8 +31,6 @@ function event.awake()
 end
 
 function dispatch.get(dbname, cname, select)  --cname -> collection name
-
-log.info("xxx get dbname:%s cname:%s select:%s ",dbname,cname,tool.dump(select))
 	return db[dbname]:findOne(cname, select)
 end
 
@@ -41,14 +39,36 @@ function dispatch.set(dbname, cname, select, update)
 	
 end
 
-function dispatch.incr(dbname, cname)
-    return db[dbname]:incr(cname)
-end
-
 function dispatch.insert(dbname, cname, data)
 	db[dbname]:insert(cname, data)
 end
 
+
+
+
+--发号器  临时方案
+local maxuid = 0
+function event.start()
+	local ret =  db["account"]:findOne("tb_key", {key="account"})
+	if ret then
+        maxuid = ret.uuid
+    end
+end
+
+function event.exit()
+	db["account"]:update("tb_key", {key="account"}, {key="account", uuid=maxuid}, true)
+end
+
+--原来方案有数据竞争问题，协程中调用数据库，协程会被挂起
+--中途会执行其他协程
+function dispatch.incr(dbname, cname)
+    --return db[dbname]:incr(cname)
+	
+	--这一行存储只是防止停服，也会有竞争问题
+	db["account"]:update("tb_key", {key="account"}, {key="account", uuid=maxuid+1}, true)
+	maxuid = maxuid + 1
+	return maxuid
+end
 
 --[[
 local db

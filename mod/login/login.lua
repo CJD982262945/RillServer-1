@@ -31,6 +31,7 @@ local function register(account, password)
         password = password
     }
     local ret = libdb.set_accountdata(account, data) 
+	log.debug("register succ account:%s uid:%d", account, uid)
     return true, uid
 end
 
@@ -42,12 +43,13 @@ local function check_pw(account, password)
 	end
 
     local ret = libdb.get_accountdata(account)
-	log.info("xxx check_pw %d", ret and 1 or 0)
 	--µÇÂ¼
 	if ret and ret.password == password then
+		log.info("check_pw succ account:%s then login uid:%d", account, ret.uid)
 		return true, ret.uid
 	end
 	--×¢²á
+	log.info("check_pw fail account:%s then register",  account)
 	local ret, uid = register(account, password)
 	if ret then
 		return true, uid

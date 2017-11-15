@@ -1,38 +1,39 @@
-do return end
-
-
 local skynet = require "skynet"
 local log = require "log"
-local env = require "env"
 local libcenter = require "libcenter"
+local liblife = require "liblife"
 local Player = require "global.life.player"
 
-local D = env.dispatch.life
-local F = env.forward.life
+local faci = require "faci.module"
+local module, static = faci.get_module("life")
+local dispatch = module.dispatch
+local forward = module.forward
 
-local ids = env.life.ids
-local rooms = env.life.rooms
+static.ids = static.ids or {}
+static.rooms = static.rooms or {}
+local ids = static.ids
+local rooms = static.rooms
 
 
 
 
-function D.create(id)
+function dispatch.create(id)
 	local room = {
 		id = id,
 		players = {},
 		map = {},
 		top = 0,
 		last_sync_time = 0,
-		descent_speed = env.life.DEFAULT_SPEED
+		descent_speed = static.DEFAULT_SPEED
 	}
 	rooms[id] = room
 	--初始化地图
-	env.life.init_map(room)
+	static.init_map(room)
 end
 
 
-function D.delete(id)
-	local room = room[id]
+function dispatch.delete(id)
+	local room = rooms[id]
 	if not room then
 		log.debug("lifegame.delete fail, not room, room(%d)", id)
 		return false
@@ -43,19 +44,20 @@ function D.delete(id)
 		return false
 	end
 	
-	room[id] = nil
+	rooms[id] = nil
+	liblife.delete(id)
 	return true
 end
 
-function D.enter(id, uid, data)
+function dispatch.enter(id, uid, data)
 	skynet.error("lifegame enter room "..uid.." "..id)
-	local  room = rooms[id]
+	local room = rooms[id]
 	if not room then
-		skynet.error("lifegame enter not room "..id)
+		skynet.error("lifegame enter fail, not room "..id)
 		return false
 	end
 
-	local y, x, face = env.life.born_point(room)
+	local y, x, face = static.born_point(room)
 	--init player
 	local player = Player.new()
 	player.uid = uid
@@ -70,7 +72,7 @@ function D.enter(id, uid, data)
 	for i,v in pairs(room.players) do
 		if i ~= uid then
 			local msg = player:fulldata()
-			msg.cmd = "life.add"
+			msg._cmd = "life.add"
 			libcenter.send2client(i, msg)
 		end
 	end
@@ -81,7 +83,7 @@ end
 
 
 
-function D.leave(id, uid)
+function dispatch.leave(id, uid)
 	local id = ids[uid]
 	
 	local  room = rooms[id]
@@ -93,13 +95,23 @@ function D.leave(id, uid)
 	room.players[uid] = nil;
 	ids[uid] = nil
 	
-	D.broadcast(room, "life.leave", {uid=uid})
+	dispatch.broadcast(room, "life.leave", {uid=uid})
 
 	log.info("lifegame leave room uid(%d)", uid)
-	return true
+	
+	--delete
+	local count = 0
+	for i,v in pairs(room.players) do
+		count = count +1
+	end
+	if count <= 0 then
+		dispatch.delete(id)
+	end
+	
+	return count
 end
 
-function F.list(uid, msg)
+function forward.list(uid, msg)
 	local id = ids[uid]
 	local room = rooms[id]
 	if not room then
@@ -116,7 +128,7 @@ function F.list(uid, msg)
 	return msg
 end
 
-function F.input(uid, msg)
+function forward.input(uid, msg)
 	local id = ids[uid]
 	local room = rooms[id]
 	local player = room.players[uid]
@@ -124,15 +136,15 @@ function F.input(uid, msg)
 	player:input(msg.x, msg.action)
 end
 
-function F.update_map(uid, msg)
-	local room_id = env.life.ids[uid]
-	local room = env.life.rooms[room_id]
+function forward.update_map(uid, msg)
+	local room_id = static.ids[uid]
+	local room = static.rooms[room_id]
 
 	if not room then
 		log.error("life.update_map(F) fail, not room uid(%d) room_id(%d)", uid, room_id)
 		return
 	end
-	local trow, _ = env.life.coor2map(room.top, 0)
+	local trow, _ = static.coor2map(room.top, 0)
 	msg.rows = {}
 	for i=trow, trow+30 do
 		if not room.map[i] then
@@ -143,7 +155,7 @@ function F.update_map(uid, msg)
 	--防止json自动转为变成数组，导致key出错
 	--msg.rows[trow + 10] = {0,0,0,0,0,0,0,0}
 	msg.speed = room.descent_speed --地图速度
-	msg.rate = env.life.FRAME_RATE
+	msg.rate = static.FRAME_RATE
 	
 	msg.top = room.top
 	return msg
@@ -151,16 +163,17 @@ end
 
 
 local function sendsync(room)
-	local msg = { cmd = "life.list", players = {}}
+	local msg = { _cmd = "life.sync", players = {}}
 	for uid, player in pairs(room.players) do
 		local pd = player:syncdata()
 		table.insert(msg.players, pd)
 	end
-	D.broadcast(room, "life.sync", msg)
+			
+	dispatch.broadcast(room, "life.sync", msg)
 end
 
-function env.life.update_room(room, deltaTime)
-	env.life.updatemap(room, deltaTime)
+function static.update_room(room, deltaTime)
+	static.updatemap(room, deltaTime)
 	for uid, player in pairs(room.players) do
 		player:update(deltaTime)
 	end

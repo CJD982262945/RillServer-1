@@ -17,27 +17,6 @@ local function call_clusters(ignore, ...) --ignore -> ignore self
 	end
 end
 
-function dispatch.RELOAD(service_name, mod)
-
-	local services = skynet.call(".launcher", "lua", "LIST")
-
-    if not mod or mod == "" then
-        mod = "ALL"
-    end
-	
-	    log.debug("start reload %s ...", mod)
-	
-    local list = {}
-    for k, v in pairs(services) do
-        local cmd = string.match(v, "snlua (%w+) *.*")
-        if cmd == service_name then
-            local diff_time = skynet.call(k, "debug", "RELOAD", mod)
-            list[skynet.address(k)] = string.format("%.2fs (%s)", diff_time, v)
-        end
-    end
-    return list
-end
-
 
 
 function dispatch.host_mod(addr, fd ,q)
@@ -51,9 +30,7 @@ function dispatch.host_mod(addr, fd ,q)
         local cmd = string.match(v, "snlua (%w+) *.*")
         if cmd == service_name then
 			log.debug("reload %s", cmd)
-			skynet.call(k, "lua", "example.testupdate")--测试
             local diff_time = skynet.call(k, "debug", "RELOAD", mod)
-			skynet.call(k, "lua", "example.testupdate") --测试
             list[skynet.address(k)] = string.format("%.2fs (%s)", diff_time, v)
         end
     end

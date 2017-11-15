@@ -25,6 +25,11 @@ local function callmgr(cmd, ...)
 	return skynet.call(global, "lua", cmd, ...)
 end
 
+local function sendmgr(cmd, ...)
+	local global = lifeconf.mgr
+	assert(global)
+	return skynet.send(global, "lua", cmd, ...)
+end
 
 function M.create()
 	local id = callmgr("lifemgr.create")
@@ -49,14 +54,15 @@ end
 
 function M.leave(id, uid)
 	if call("life.leave", id, uid) then
-		local count = callmgr("lifemgr.leave", id)
-		if count <= 0 then
-			callmgr("lifemgr.delete", id)
-		end
+		callmgr("lifemgr.leave", id)
 		return true
 	else
 		return false
 	end
+end
+
+function M.delete(id)
+	sendmgr("lifemgr.delete", id)
 end
 
 function M.get_forward(id)

@@ -54,7 +54,7 @@ end
 --false /true, skynet:self()
 function dispatch.login(uid, data)
 	log.debug("%d player login", uid)
-	player = Player.new()
+	local player = Player.new()
     --从数据库里加载数据
 	local playerdata = load_all_data(uid)
 	--初始化数据
@@ -86,16 +86,13 @@ end
 
 
 function dispatch.kick(uid, season)
+	faci.fire_event("logout", player)
 	save_data(uid)
 	local player = env.players[uid]
 	if player.fd then
 		env.fds[player.fd] = nil
 	end
 	env.players[uid] = nil
-	faci.fire_event("logout", player)
-	--logout里的内容
-	--dispatch.leave_room(player)
-	--dispatch.life.leave_room(player)
 	return true
 end
 
@@ -108,4 +105,19 @@ end
 
 function event.login()
 	log.info("event.login")
+end
+
+
+
+function module.watch(acm)
+	--统计在线人数
+	local logined = 0		--成功登陆
+	for i, v in pairs(env.players) do
+		logined = logined + 1
+	end
+	local ret = {logined = logined}
+	--总统计
+	acm.logined = acm.logined and acm.logined + logined or logined
+
+	return ret, acm
 end

@@ -1,14 +1,13 @@
-do return end
-
 local skynet = require "skynet"
 local log = require "log"
-local env = require "env"
 local libcenter = require "libcenter"
 
-env.dispatch.lifemgr = env.dispatch.lifemgr or {}
-env.forward.lifemgr = env.forward.lifemgr or {}
-local D = env.dispatch.lifemgr
-local F = env.forward.lifemgr
+local faci = require "faci.module"
+local module, static = faci.get_module("lifemgr")
+local dispatch = module.dispatch
+local forward = module.forward
+local event = module.event
+
 --大作战游戏life
 local MAX_PLAYER = 10
 
@@ -20,20 +19,20 @@ local room_mgr = {
 local next_id = 0
 
 --返回0失败 >=1 房间id
-function D.create()
+function dispatch.create()
 	next_id = next_id + 1
 	room_mgr[next_id] = 0
 	return next_id
 end
 
-function D.delete(id)
+function dispatch.delete(id)
 	room_mgr[id] = nil
 end
 
 
 --由于有网络延迟，并非严格限制，只是推荐进入
 --返回roomid 或 0（要创建）
-function D.recommend()
+function dispatch.recommend()
 	--可优化为读取缓存列表而不是循环
 	for i, v in pairs(room_mgr) do
 		if v < MAX_PLAYER then
@@ -43,12 +42,17 @@ function D.recommend()
 	return 0
 end
 
-function D.addplayer(id)
+function dispatch.addplayer(id)
 	room_mgr[id] = room_mgr[id] + 1
 	return room_mgr[id]
 end
 
-function D.leave(id)
+function dispatch.leave(id)
 	room_mgr[id] = room_mgr[id] - 1
 	return room_mgr[id]
+end
+
+
+function module.watch(acm)
+	return room_mgr
 end

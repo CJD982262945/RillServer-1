@@ -3,21 +3,20 @@ local log = require "log"
 
 local libcenter = require "libcenter"
 local liblife = require "liblife"
-local libqueryboard = require "libqueryboard"
 local tool = require "tool"
-local libsetup = require "libsetup"
 local Player = require "game.player"
 local runconf = require(skynet.getenv("runconfig"))
 local node = skynet.getenv("nodename")
 
-env.dispatch.life = env.dispatch.life or {}
-env.forward.life = env.forward.life or {}
-local D = env.dispatch.life
-local F = env.forward.life
+local faci = require "faci.module"
+local module = faci.get_module("life")
+local dispatch = module.dispatch
+local forward = module.forward
+local event = module.event
 
 
 --进入房间
-function F.enter_room(player, msg)
+function forward.enter_room(player, msg)
 	--msg = {id=1,2,3}
 	player.life = player.life or {}
 	if player.life.room_id then
@@ -42,13 +41,13 @@ function F.enter_room(player, msg)
 end
 
 --离开房间
-function F.leave_room(player, msg)
-	D.leave_room(player)
+function forward.leave_room(player, msg)
+	dispatch.leave_room(player)
 	return
 end
 
 --离开房间
-function D.leave_room(player)
+function dispatch.leave_room(player)
 	if not player.life then
 		return
 	end
@@ -62,4 +61,9 @@ function D.leave_room(player)
 		player.romote.life = nil
 		player.life = nil
 	end
+end
+
+--离开
+function event.logout(player)
+	dispatch.leave_room(player)
 end

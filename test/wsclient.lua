@@ -1,21 +1,41 @@
-package.cpath = "../skynet/luaclib/?.so"
+package.cpath = "../luaclib/?.so"
 package.path = "../skynet/lualib/?.lua;../lualib/?.lua;../examples/?.lua"
 
 if _VERSION ~= "Lua 5.3" then
 	error "Use lua 5.3"
 end
 
+local M = {}
+
+
 
 local socket = require "clientwebsocket"
 local json = require "cjson"
 local tool = require "tool"
 
-local fd = assert(socket.connect("127.0.0.1", 8799))
+local fd = nil
+local cb = nil
+local cbt = nil
+M.stop = false
 
-local function request(name, args, session)
+function M.connect(ip, port, recvcb, timercb)
+	cb = recvcb
+	cbt = timercb
+	fd = assert(socket.connect(ip or "127.0.0.1", port or 8799))
+end
+
+function M.sleep(t)
+	socket.usleep(t)
+end
+function M.login(account, password)
+	account = account or "hitten"
+	password = password or "123456"
+	M.send("login.Login", {account=account, password=password})
+end
+local function request(name, args)
     local t = {
-        cmd = name,
-        seq = session,
+        _cmd = name,
+		_check = 0,
     }
     if type(args) == "table" then
         for k, v in pairs(args) do
@@ -43,9 +63,9 @@ end
 
 local session = 0
 
-local function send_request(name, args)
+function M.send(name, args)
 	session = session + 1
-	local str = request(name, args, session)
+	local str = request(name, args)
 	send_package(fd, str)
 	print("Request:", session)
 end
@@ -58,24 +78,26 @@ local function dispatch_package()
 		if not v  or v == "" then
 			break
 		end
-        
-        print("recv: " .. tool.dump(v)) 
-	end
-end
-
-send_request("login", {account="2", password="11111"})
-
-while true do
-	dispatch_package()
-	local cmd = socket.readstdin()
-	if cmd then
-		if cmd == "quit" then
-			send_request("quit")
+		print("recv: " .. tool.dump(v)) 
+        if cb then 
+			local t = json.decode(v)
+			cb(t)
 		else
-			send_request("get", { what = cmd })
+			print("cb == nil")
 		end
-	else
-		socket.usleep(100)
 	end
 end
 
+
+function M.start()
+	while true do
+		if M.stop then break end
+		dispatch_package()
+		if cbt then
+			cbt()
+		end
+		socket.usleep(50)
+	end
+end
+
+return M

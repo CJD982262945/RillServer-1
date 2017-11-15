@@ -1,9 +1,11 @@
-do return end
-
-local env = require "env"
 local log = require "log"
 local skynet = require "skynet"
-local D = env.dispatch.life
+
+local faci = require "faci.module"
+local module, static = faci.get_module("life")
+local dispatch = module.dispatch
+local forward = module.forwar
+
 local libsetup = require "libsetup"
 local Player = require "global.life.player"
 local tool = require "tool"
@@ -79,7 +81,7 @@ function Player:buildingcollide()
 	end
 	self.last_bcld_time = timenow
 	---body_building
-	local row,index = env.life.coor2map(self.y-20, self.x)
+	local row,index = static.coor2map(self.y-20, self.x)
 	local building = self.room.map[row][index]
 	local cfg = libsetup.lifebuilding[building]
 	--condition
@@ -91,6 +93,6 @@ function Player:buildingcollide()
 	--disappear
 	if cfg.eat and cfg.eat == 1 then
 		self.room.map[row][index] = 0
-		D.broadcast(self.room, "life.eat", {row=row, index=index})
+		dispatch.broadcast(self.room, "life.eat", {row=row, index=index})
 	end
 end

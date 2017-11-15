@@ -1,10 +1,11 @@
-do return end
-
-local env = require "env"
 local log = require "log"
 local skynet = require "skynet"
-local D = env.dispatch.life
 local libsetup = require "libsetup"
+
+local faci = require "faci.module"
+local module, static = faci.get_module("life")
+local dispatch = module.dispatch
+local forward = module.forward
 
 local Player = {}
 Player.__index = Player
@@ -37,7 +38,7 @@ function Player.new(o)
 		last_hit_time = 0, --攻击相关
 		last_bcld_time = 0, --building相关 last building collide time
 		last_systatus_time = 0, --sync_status,
-		agespeed = 0.29,			--50 年龄增长速度
+		agespeed = 0.29,			--50 年龄增长速度 0.29,
 		--
 		game = nil, -- for convenience
 		node = nil,
@@ -112,7 +113,7 @@ function Player:hitaction(deltaTime)
 			break --only one people
 		end
 	end
-	D.broadcast(room, "life.action", {action=1, uid=self.uid})
+	dispatch.broadcast(room, "life.action", {action=1, uid=self.uid})
 end
 
 --上下边界
@@ -127,8 +128,8 @@ function Player:boundcollide(deltaTime)
 		self.movespeed = 0
 	end
 	--下边界
-	if self.y > room.top + env.life.MAP_HEIGHT  then
-		local y, x, face = env.life.born_point(room)
+	if self.y > room.top + static.MAP_HEIGHT  then
+		local y, x, face = static.born_point(room)
 		self.y = y
 		self.x = x
 		self.face = face
@@ -139,7 +140,7 @@ end
 function Player:updatephysics(deltaTime)
 	local room = self.room
 	local map = room.map
-	local row,index = env.life.coor2map(self.y, self.x)
+	local row,index = static.coor2map(self.y, self.x)
 	local building = map[row][index] --foot_building
 	--movement input
 	local accelerated = Player.MOVE_ACCELERATED*self.moveinput
@@ -165,7 +166,7 @@ function Player:updatephysics(deltaTime)
 	dx = dbx
 	
 	if building == 1 then dy = 0 end --stand on floor
-	local rowd,indexd = env.life.coor2map(self.y + dy, self.x + dx) --rowd has moved
+	local rowd,indexd = static.coor2map(self.y + dy, self.x + dx) --rowd has moved
 	local buildingd = map[rowd][indexd] --foot_building ed
 	if buildingd == 1 then  --stand on floor
 		dy = (rowd-1)*40 - self.y
