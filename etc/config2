@@ -2,7 +2,7 @@ app_root = "$ROOT/"
 skynet_root = "$SKYNET_ROOT/" 
 
 logpath = app_root.."log/"
-log_level = "info"
+log_level = "debug"
 
 
 thread = 4
