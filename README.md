@@ -12,13 +12,13 @@ RillServer采用传统c++服务器的架构方案。
 
 ###各个服务的功能：
 
-gateway：门，客户端只连接gateway，如果玩家尚未登录，gateway会把消息发给login，如果登录成功会转发给game
-login：登录服，处理登录逻辑
-game：游戏服，处理玩家逻辑
-center：中心服，记录玩家登录状态等信息
-global	全局服，可在此实现跨服战等功能
-dbproxy：数据库代理，使用服务不直接操作数据库，只操作dbproxy
-host：主机，用于集群控制，如热更新、关服，以及web
+* gateway：门，客户端只连接gateway，如果玩家尚未登录，gateway会把消息发给login，如果登录成功会转发给game
+* login：登录服，处理登录逻辑
+* game：游戏服，处理玩家逻辑
+* center：中心服，记录玩家登录状态等信息
+* global	全局服，可在此实现跨服战等功能
+* dbproxy：数据库代理，使用服务不直接操作数据库，只操作dbproxy
+* host：主机，用于集群控制，如热更新、关服，以及web
 > ps：
 > 1、一个节点的gate只会连接该节点的login和game，login和game可以连接跨节点的center、global和dbproxy。
 > 2、暂时未实现cache层。
@@ -28,17 +28,17 @@ host：主机，用于集群控制，如热更新、关服，以及web
 >skynet/service/launcher.lua
 
 ###文件目录
-config：策划配置文件夹
-etc：服务配置文件夹
-luaclib：一些c模块, .so文件
-lualib：lua模块
-lualib-src：c模块代码
-mod：游戏逻辑模块
-proto：protobuf文件，若使用pb协议需要把proto文件放在里面
-run：记录pid等信息
-service：服务入口地址，服务开启后会读取mod里对应模块
-skynet：skynet框架，这里尽量少改动它，以便后续更新
-test：例子
+* config：策划配置文件夹
+* etc：服务配置文件夹
+* luaclib：一些c模块, .so文件
+* lualib：lua模块
+* lualib-src：c模块代码
+* mod：游戏逻辑模块
+* proto：protobuf文件，若使用pb协议需要把proto文件放在里面
+* run：记录pid等信息
+* service：服务入口地址，服务开启后会读取mod里对应模块
+* skynet：skynet框架，这里尽量少改动它，以便后续更新
+* test：例子
 
 ##入门
 入门章节将会介绍开启服务器以及实现echo程序，若还不太熟悉skynet和服务端编程，欢迎参考 [游戏研究院](https://zhuanlan.zhihu.com/pyluo) 中的文章。
@@ -89,7 +89,7 @@ test：例子
         使用示例1登录，关闭数据库，测试，重开数据库，测试  
 * 示例10 关服功能
 * 示例11 pb协议
-* 示例12 雄爷大作战
+* 示例12 xx大作战
 
 
 
