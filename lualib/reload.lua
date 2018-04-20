@@ -1,11 +1,14 @@
 local reload = {}
 
+
 local table = table
 local debug = debug
 
 local sandbox = {}
 local sandbox_meta = {}
 local sandbox_mods = {}
+
+
 local function make_sandbox()
     return setmetatable({}, sandbox)
 end
@@ -154,9 +157,8 @@ function update_function(old_func, new_func, name, deep)
     local signature = tostring(old_func) .. tostring(new_func)
     if visited_sig[signature] then return end
     visited_sig[signature] = true
-
-
     update_upvalue(old_func, new_func, name, deep)
+	
     change_func[old_func] = new_func
 end
 
@@ -245,6 +247,7 @@ local function loadmod(mod, env)
     return true, f, obj
 end
 
+
 local function travel_all()
     local visited = {}
     visited.reload = true
@@ -261,11 +264,13 @@ local function travel_all()
                 f(value)
             end
         elseif type(t) == "table" then
+		
             f(debug.getmetatable(t))
             for k, v in pairs(t) do
                 f(k)
                 f(v)
                 if type(v) == "function" then
+					if get == 3 then print("change_func:"..k) end  --测试
                     if change_func[v] then
                         t[k] = change_func[v]
                     end
@@ -321,8 +326,6 @@ function reload.reload(mod)
     end
 
     update_obj(old_obj, new_obj, "reload", "")
-
-
     for name, value in pairs(sandbox_mods) do
         local old_value = package.loaded[name]
         update_obj(old_value, value, name, "")
@@ -331,6 +334,9 @@ function reload.reload(mod)
     setmetatable(env, nil)
     update_obj(_ENV, env, "ENV", "")
     travel_all()
+	
+	debug.setupvalue(func, 1, _ENV)
+	func()
     return true
 end
 

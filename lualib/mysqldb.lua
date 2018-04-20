@@ -4,14 +4,10 @@ local log = require "log"
 local json = require "cjson"
 local tool = require "tool"
 
-local M = {}
+local mysqldb = {}
+mysqldb.__index = mysqldb
 
-local db
-
-local table_desc = {}
-local get_table_desc
-
-function M.start(conf)
+function mysqldb:start(conf)
     local host = conf.host
     local port = conf.port
     local database = conf.database
@@ -21,7 +17,8 @@ function M.start(conf)
 	local function on_connect(db)
 		db:query("set charset utf8");
 	end
-	db = mysql.connect({
+	
+	local db = mysql.connect({
 		host = host,
 		port = port,
 		database = database,
@@ -32,13 +29,20 @@ function M.start(conf)
 	})
 	if not db then
 		log.error("failed to connect conf: %s", tool.dump(conf))
-        return false
+		assert(nil)
+        return nil
 	end
 	log.debug("mysql success to connect to mysql server")
-    return true
+	
+	local o = {db = db, table_desc={}}
+	setmetatable(o, mysqldb)
+    return o
 end
 
-function get_table_desc(cname)
+function mysqldb:get_table_desc(cname)
+	local table_desc = self.table_desc
+	local db = self.db
+	
     local desc = table_desc[cname]
     if desc then
         return desc
@@ -87,8 +91,8 @@ local function build_field_selector(field_selector)
     return str
 end
 
-local function build_find_data(cname, data)
-    local desc = get_table_desc(cname)
+function mysqldb:build_find_data(cname, data)
+    local desc = self:get_table_desc(cname)
     if not desc then
         return
     end
@@ -107,7 +111,12 @@ local function build_find_data(cname, data)
     return data
 end
 
-function M.findOne(cname, selector, field_selector)
+----以下是对外接口
+
+function mysqldb:findOne(cname, selector, field_selector)
+	local table_desc = self.table_desc
+	local db = self.db
+	
     local selector_str = build_selector(selector)
     local field_selector_str = build_field_selector(field_selector)
 
@@ -116,23 +125,29 @@ function M.findOne(cname, selector, field_selector)
     local ret = db:query(sql)
 
     log.debug("=-==ret: %s", tool.dump(ret))
-    ret = build_find_data(cname, ret)
-    return ret[1]
+    ret = self:build_find_data(cname, ret)
+    return ret and ret[1] or nil
 end
 
-function M.find(cname, selector, field_selector)
+function mysqldb:find(cname, selector, field_selector)
+	local table_desc = self.table_desc
+	local db = self.db
+	
     local selector_str = build_selector(selector)
     local field_selector_str = build_field_selector(field_selector)
 
     local sql = string.format("select %s from %s where %s", field_selector_str, cname, selector_str)
     local ret = db:query(sql)
     log.debug("=-==ret: %s", tool.dump(ret) .. " sql: " .. sql)
-    ret = build_find_data(cname, ret)
+    ret = self:build_find_data(cname, ret)
     return ret
 end
 
-function M.alter(cname, selector)
-    local desc = get_table_desc(cname)
+function mysqldb:alter(cname, selector)
+	local table_desc = self.table_desc
+	local db = self.db
+	
+    local desc = self:get_table_desc(cname)
     if not desc then
         return
     end
@@ -165,8 +180,11 @@ function M.alter(cname, selector)
 end
 
 
-function M.update(cname, selector, field_selector)
-    M.alter(cname, selector)
+function mysqldb:update(cname, selector, field_selector, upsert)
+	local table_desc = self.table_desc
+	local db = self.db
+	
+    self:alter(cname, selector)
 
     local selector_str = build_selector(selector)
     local field_selector_str = build_selector(field_selector)
@@ -174,8 +192,11 @@ function M.update(cname, selector, field_selector)
     local sql = string.format("update %s set %s where %s", cname, field_selector_str, selector_str)
     log.debug("sql: " .. sql)
     local ret = db:query(sql)
-
     log.debug("update ret: " .. tool.dump(ret))
+	
+	if upsert and err.affected_rows == 0 then
+		return self:insert(cname, field_selector)
+	end
     return ret
 end
 
@@ -201,26 +222,34 @@ local function build_insert_data(data)
     return field_str, value_str
 end
 
-function M.create_table(cname, data)
+function mysqldb:create_table(cname, data)
+	local table_desc = self.table_desc
+	local db = self.db
+	
     assert(type(data) == "table")
 
     local t = {}
  
     for k, v in pairs(data) do
        if type(v) == "string" then
-           table.insert(t, string.format("%s char(100) NOT NULL", k))
+           table.insert(t, string.format("%s blob NOT NULL", k)) --必要时改char(100)
        elseif type(v) == "number" then
            table.insert(t, string.format("%s int", k))
        elseif type(v) == "table" then
            table.insert(t, string.format("%s varchar(1024)", k))
        end
     end
-
-    if not data.id then
+	
+	if data.playerid then
+        table.insert(t, "PRIMARY KEY(playerid)")
+    end
+	
+    if not data.playerid and not data.id  then
         table.insert(t, "id INT NOT NULL AUTO_INCREMENT")
+		table.insert(t, "PRIMARY KEY(id)")
     end
 
-    table.insert(t, "PRIMARY KEY(id)") 
+    
     local str = table.concat(t, ",")
 
     local sql = string.format("create table if not exists %s(%s)ENGINE=InnoDB DEFAULT CHARSET=utf8;",cname,str)
@@ -233,10 +262,12 @@ function M.create_table(cname, data)
     return ret
 end
 
-function M.insert(cname, data)
-
-    if not get_table_desc(cname) then
-        M.create_table(cname, data)
+function mysqldb:insert(cname, data)
+	local table_desc = self.table_desc
+	local db = self.db
+	
+    if not self:get_table_desc(cname) then
+        self:create_table(cname, data)
     end
 
     local field_str, value_str = build_insert_data(data)
@@ -247,15 +278,18 @@ function M.insert(cname, data)
     return ret
 end
 
-function M.replace(cname, data)
+function mysqldb:replace(cname, data)
+	local table_desc = self.table_desc
+	local db = self.db
+	
     if not get_table_desc(cname) then
-        M.create_table(cname, data)
+        self:create_table(cname, data)
     end
 
 
-    M.alter(cname, data)
+    self:alter(cname, data)
 
-    local field_str, value_str = build_insert_data(data)
+    local field_str, value_str = self:build_insert_data(data)
     local sql = string.format("replace into %s(%s)values(%s)", cname, field_str, value_str)
     log.debug("sql: " .. sql)
     local ret = db:query(sql)
@@ -264,13 +298,16 @@ function M.replace(cname, data)
     return ret
 end
 
-function M.delete(cname, selector)
+function mysqldb:delete(cname, selector)
+	local table_desc = self.table_desc
+	local db = self.db
+	
     local selector_str = build_selector(selector)
     local sql = string.format("delete from %s where %s", cname, selector_str)
     local ret = db:query(sql)
     return sql
 end
 
-return M
+return mysqldb
 
 

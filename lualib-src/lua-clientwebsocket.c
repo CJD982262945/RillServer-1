@@ -506,7 +506,8 @@ readline_stdin(void * arg) {
 	while (!feof(stdin)) {
 		if (fgets(tmp,sizeof(tmp),stdin) == NULL) {
 			// read stdin failed
-			exit(1);
+			//exit(1);
+			return NULL;
 		}
 		int n = strlen(tmp) -1;
 
