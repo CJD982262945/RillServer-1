@@ -1,0 +1,10 @@
+syntax = "proto2";
+package playerdata;
+
+message baseinfo
+{
+    optional string name = 1;
+    optional uint32 register_time = 2;
+    optional uint32 login_time = 3;
+}
+

@@ -10,11 +10,13 @@ function M.get(t, v)
     if not conf then
         return
     end
+    v = tostring(v)
     return conf[v]
 end
 
 setmetatable(M, {
     __index = function(t, k)
+        k = tostring(k)
         return datasheet.query(k)
     end
 })

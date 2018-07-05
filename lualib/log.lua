@@ -1,4 +1,6 @@
 local skynet = require "skynet"
+local runconf = require(skynet.getenv("runconfig"))
+
 local logger = {}
 
 local loglevel = {
@@ -24,9 +26,72 @@ local function init_log_level()
     end
 end
 
-local function logmsg(loglevel, format, ...)
-	local n = logger._name and string.format("[%s:] ", logger._name) or ""
-    skynet.error(n..string.format(format, ...))
+local function none_format()
+    local format = "%s%s"
+    return format
+end
+
+local function red_format()
+    local format = string.char(0x1b).."[0;32;31m%s%s"..string.char(0x1b).."[0m"
+    return format
+end
+
+local function light_red_format()
+    local format = string.char(0x1b).."[1;31m%s%s"..string.char(0x1b).."[0m"
+    return format
+end
+
+local function green_format()
+    local format = string.char(0x1b).."[0;32;32m%s%s"..string.char(0x1b).."[0m"
+    return format
+end
+
+local function light_green_format()
+    local format = string.char(0x1b).."[1;34m%s%s"..string.char(0x1b).."[0m"
+    return format
+end
+
+local function blue_format()
+    local format = string.char(0x1b).."[0;32;34m%s%s"..string.char(0x1b).."[0m"
+    return format
+end
+
+local function light_blue_format()
+    local format = string.char(0x1b).."[1;34m%s%s"..string.char(0x1b).."[0m"
+    return format
+end
+
+
+local function cyan_format()
+    local format = string.char(0x1b).."[0;36m%s%s"..string.char(0x1b).."[0m"
+    return format
+end
+
+local function light_cyan_format()
+    local format = string.char(0x1b).."[1;36m%s%s"..string.char(0x1b).."[0m"
+    return format
+end
+
+local function yellow_format()
+    local format = string.char(0x1b).."[1;33m%s%s"..string.char(0x1b).."[0m"
+    return format
+end
+
+local function logmsg(level, format, ...)
+	local n = logger._name and string.format("[%s] ", logger._name) or ""
+    local str = string.format(format, ...)
+    local _format = none_format()
+    if runconf.TEST then
+        if level == loglevel.err then
+            _format = red_format()
+        elseif level == loglevel.warn then
+            _format = yellow_format()
+        elseif level == loglevel.info then
+            _format = cyan_format()
+        end
+    end
+    local msg = string.format(_format, n, str)
+    skynet.error(msg)
 end
 
 function logger.set_log_level(level)

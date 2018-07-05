@@ -35,7 +35,9 @@ local function init()
 	--模块
 	module.init_modules()
 	module.fire_event("awake")
-	module.fire_event("start")
+    skynet.timeout(100, function()
+	                        module.fire_event("start")
+                        end)
 	log.debug("start ok "..name.."...")
 end
 
@@ -58,6 +60,10 @@ function faci_dispatch.stop()
 			log.error(debug.traceback()) 
 		end)
 	end
+    return true
+end
+
+function faci_dispatch.exit()
 	skynet.exit()
 end
 

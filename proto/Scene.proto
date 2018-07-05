@@ -1,0 +1,61 @@
+syntax = "proto2";
+package Scene;
+
+message MsgEnter 	
+{ 
+    // in
+	optional int32 SceneId = 1; 
+    // out
+	optional int32 Result = 2; 
+}
+
+message MsgLeave 	
+{ 
+    // out
+	optional int32 Result = 2; 
+}
+
+message MsgMove 	
+{ 
+    // in
+    optional int32 x = 1;
+    optional int32 y = 2;
+    optional int32 direct_x = 3;
+    optional int32 direct_y = 4;
+}
+
+message MsgAtk
+{
+    // in
+    optional int32 skillId = 1;
+    optional uint64 targetId = 2;
+}
+
+message AOIObject 
+{
+    optional uint32 objId = 1;
+    optional uint64 playerId = 2;
+    optional string name = 3;
+    optional int32 type = 4;
+    optional int32 hp = 5;
+    optional int32 maxHp = 6;
+    optional int32 lvl = 7;
+    optional int32 x = 8;
+    optional int32 y = 9;
+    optional int32 directX = 10;
+    optional int32 directY = 11;
+}
+
+// out
+message MsgAOIList 
+{
+    repeated AOIObject objs = 1;
+}
+
+// out
+message MsgAOIExit 
+{
+    optional uint32 objId = 1;
+}
+
+

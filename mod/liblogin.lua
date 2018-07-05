@@ -25,9 +25,6 @@ function M.fetch_login()
     return login[next_id]
 end
 
-
-
-
 skynet.init(init)
 
 return M

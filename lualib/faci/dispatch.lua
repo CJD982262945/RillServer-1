@@ -1,6 +1,7 @@
 local skynet = require "skynet"
 local log = require "log"
 local env = require "faci.env"
+local faci = require "faci.module"
 local protopack = require "protopack"
 require "libstring"
 local libsocket = require "libsocket"
@@ -25,6 +26,27 @@ local function watch(mod, acm)
 	return true, nil
 end
 
+local sys = {
+}
+
+function sys.subscribe_event(event, nodename, service, key)
+    faci._subscribe_event(event, nodename, service, key)
+    return true
+end
+
+function sys.unsubscribe_event(event, nodename, service, key)
+    faci._unsubscribe_event(event, nodename, service, key)
+    return true
+end
+
+local function sys_dispatch(cmd, ...)
+    local cb = sys[cmd]
+    if type(cb) ~= "function" then
+        return false
+    end
+    return cb(...)
+end
+
 local function lua_dispatch(session, addr, cmd, ...)
 
 	local cmdlist = string.split(cmd, ".")
@@ -39,7 +61,12 @@ local function lua_dispatch(session, addr, cmd, ...)
 		local isok, msg, acm = watch(...)
 		skynet.retpack(isok, msg, acm)
 		return true
+    elseif cmd1 == "sys" then
+        local isok, msg = sys_dispatch(cmd2, ...)
+		skynet.retpack(isok, msg)
+        return true
 	end
+
 	--模块
 	local module = env.module[cmd1]
 	if type(module) ~= "table" then
@@ -106,7 +133,7 @@ function romote_dispatch(cmd1, cmd2, fd, msg, source)
         return false
     end
 	
-	local uid = get_v(fd).uid
+	local uid = get_v(fd).playerid
 	log.info("client_forward %s.%s", cmd1, cmd2)
     local isok, ret = skynet.call(adress, "lua", "client_forward", cmd1, cmd2, uid, msg, source)
 	return isok, ret 
@@ -132,24 +159,17 @@ function local_dispatch(cmd1, cmd2, fd, msg, source)
 		return false
 	end
 	--开始分发
-    local isok, ret = xpcall(cb, traceback, get_v(fd), msg, source)
+    local v = get_v(fd)
+    local isok, ret = xpcall(cb, traceback, v, msg, source)
     if not isok then
         log.error("local_dispatch handle msg error, cmd = %s, msg = %s, err=%s", cmd1, tool.dump(msg), ret)
-		return true --报错的情况也表示分发到位
+    	return true  --报错的情况也表示分发到位
     end
-	
-    return true, ret 
+
+    return true, ret
 end
 
-
-function client_dispatch(session, source, str)
-	--特殊用法，将session用作fd，减少再次转发给gate
-	local fd = session
-	local cmd, check, msg = protopack.unpack(str)
-	if not cmd then
-		skynet.send(source, "lua", "kick", fd)
-		return
-	end
+local function client_dispatch_help(cmd, check, msg, fd, source)
 	msg._cmd = cmd
 	msg._check = check
 	--TODO check校验
@@ -163,12 +183,53 @@ function client_dispatch(session, source, str)
 	end
 	
 	if ret then
-		local rcmd, rcheck = ret._cmd, ret._check
-		ret._cmd = nil
-		ret._check = nil
-		local data = protopack.pack(rcmd, rcheck, ret)
-		libsocket.send(fd, data)
+        skynet.send(source, "lua", "send", fd, ret)
 	end
+end
+
+local function get_queue_id(cmd)
+    if not env.queue_cmd then
+        return 
+    end
+    
+    for id, cmds in ipairs(env.queue_cmd) do
+        if cmds[cmd] then
+            return id
+        end
+    end
+    return 
+end
+
+function client_dispatch(session, source, fd, cmd, check, msg)
+    local queue_id = get_queue_id(cmd)
+    if not queue_id then
+        client_dispatch_help(cmd, check, msg, fd, source)
+        return
+    end
+    if not env.waiting_queue[fd] then
+        env.waiting_queue[fd] = {}
+    end
+    if not env.waiting_queue[fd][queue_id] then
+        env.waiting_queue[fd][queue_id] = {}
+    end
+    local queues = env.waiting_queue[fd][queue_id]
+    if #queues  > 0 then
+        table.insert(queues, {cmd, check, msg, fd, source})
+        return
+    end
+
+    table.insert(queues, {cmd, check, msg, fd, source})
+    for i = 1, 100 do
+        local queue = table.remove(queues) 
+        if not queue then
+            return
+        end
+        client_dispatch_help(table.unpack(queue))
+    end
+    if #queues > 0 then
+        log.error("%s queue is full, queue_id: %d", fd, queue_id)
+    end
+    env.waiting_queue[fd][queue_id] = nil
 end
 
 
@@ -177,6 +238,7 @@ skynet.dispatch("lua", lua_dispatch)
 skynet.register_protocol{
 	name = "client",
 	id = skynet.PTYPE_CLIENT,
-	unpack = skynet.tostring,
+	unpack = skynet.unpack,
 	dispatch = client_dispatch, 
 }
+

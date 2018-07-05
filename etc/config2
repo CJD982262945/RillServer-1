@@ -12,6 +12,7 @@ bootstrap = "snlua bootstrap"
 
 runconfig = "runconfig"
 
+nodeid = 2
 nodename = "node2"
 
 

@@ -1,15 +1,26 @@
-
-
 local skynet = require "skynet"
 local log = require "log"
+local tool = require "tool"
 
 local liblogin = require "liblogin"
 local libcenter = require "libcenter"
 
-local gateserver = require "faci.gateserver"   --pb协议
+local runconf = require(skynet.getenv("runconfig"))
+local servconf = runconf.service
 
-local connection = {}	-- fd -> { fd , ip, uid（登录后有）game（登录后有）key（登录后有）}
-local fds = {} --uid->fd
+local env = require "faci.env"
+local gate_id = tonumber(env.gateway_id)
+local gate_conf = servconf.gateway[gate_id]
+
+local prototype = gate_conf.prototype or runconf.prototype
+local protopacktype = gate_conf.protopack or runconf.protopack
+
+local libsocket = require ("libsocket_"..prototype)
+local protopack = require ("protopack_"..protopacktype)
+local gateserver = require("faci.gateserver_"..prototype)
+
+local connection = {}	-- fd -> { fd , ip, playerid（登录后有）game（登录后有）key（登录后有）}
+local fds = {} --playerid->fd
 local name = "" --gated1
 
 skynet.register_protocol {
@@ -28,7 +39,7 @@ function handler.connect(fd, addr)
 	local c = {
 		fd = fd,
 		ip = addr,
-		uid = nil,
+		playerid = nil,
 		game = nil,
 	}
 	connection[fd] = c
@@ -38,19 +49,35 @@ end
 
 function handler.message(fd, msg, sz)
 	local c = connection[fd]
-	local uid = c.uid
+	local playerid = c.playerid
 	local source = skynet.self()
-	if uid then
-		--fd为session，特殊用法
-		skynet.redirect(c.game, source, "client", fd, msg, sz)
+    local str = skynet.tostring(msg, sz)
+	local cmd, check, msg = protopack.unpack(str)
+    if not cmd then
+        CMD.kick(source, fd)
+        return
+    end
+
+	if playerid then
+		skynet.redirect(c.game, source, "client", 0, skynet.pack(fd, cmd, check, msg))
 	else
 		local login = liblogin.fetch_login()
-		--fd为session，特殊用法
-		skynet.redirect(login, source, "client", fd, msg, sz)
+		skynet.redirect(login, source, "client", 0, skynet.pack(fd, cmd, check, msg))
 	end
 end
 
 local CMD = {}
+
+function CMD.get_addr(source, fd)
+    local c = connection[fd]
+    if not c then
+        return false
+    end
+    if not c.ip then
+        return false
+    end
+    return true, c.ip
+end
 
 --true/false
 function CMD.register(source, data)
@@ -60,11 +87,20 @@ function CMD.register(source, data)
 		return false
 	end
 	
-	c.uid = data.uid
+	c.playerid = data.playerid
 	c.game = data.game
 	c.key = data.key
-	fds[data.uid] = data.fd
+	fds[data.playerid] = data.fd
 	return true
+end
+
+function CMD.send(source, fd, msg)
+    local cmd = msg._cmd
+	local check = msg._check or 0
+	msg._cmd = nil
+	msg._check = nil
+	local data = protopack.pack(cmd, check, msg)
+	libsocket.send(fd, data)
 end
 
 --true/false
@@ -76,12 +112,22 @@ function CMD.kick(source, fd)
 		return true
 	end
 	
-	if c.uid then
-		fds[c.uid] = nil
+	if c.playerid then
+		fds[c.playerid] = nil
 	end
 	connection[fd] = nil
 	gateserver.closeclient(fd)
 	return true
+end
+
+CMD["faci.stop"] = function ()
+    for k, v in pairs(connection) do
+        handler.disconnect(k)
+    end
+end
+
+CMD["faci.exit"] = function ()
+    skynet.exit()
 end
 
 function handler.disconnect(fd)
@@ -90,10 +136,10 @@ function handler.disconnect(fd)
 	if not c then
 		return
 	end
-	local uid = c.uid
-	if uid then
-		log.debug("handler.disconnect uid:%d", uid)
-		libcenter.logout(uid, c.key)
+	local playerid = c.playerid
+	if playerid then
+		log.debug("handler.disconnect playerid:%d", playerid)
+		libcenter.logout(playerid, c.key)
 	end
 	connection[fd] = nil
 	gateserver.closeclient(fd)
@@ -109,6 +155,7 @@ function handler.warning(fd, size)
 end
 
 function handler.command(cmd, source, ...)
+    log.debug("cmd: " .. cmd)
 	local f = assert(CMD[cmd])
 	return f(source, ...)
 end

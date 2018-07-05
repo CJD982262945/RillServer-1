@@ -4,6 +4,7 @@ local log = require "log"
 local env = require "faci.env"
 local event = require "faci.event"
 local reload = require "reload"
+local cluster = require "cluster"
 
 local M = {}
 
@@ -55,13 +56,10 @@ function M.get_module(name)
 	return env.module[name], env.static[name]
 end
 
+local local_nodename = skynet.getenv("nodename")
 
 local event_cache = {}
 function M.fire_event(name, ...)
-	if not event.can_fire(name) then
-		log.info("fire event fail, %s is not define", name)
-		return
-	end
 	--获取列表
 	local cache = event_cache[name]
 	if not cache then
@@ -81,10 +79,70 @@ function M.fire_event(name, ...)
 			log.error(debug.traceback())
 		end, ...)
 	end
+    --远程事件
+    local events = env.events[name]
+    if not events then
+        return
+    end
+    for nodename, nodes in pairs(events) do
+        for service, keys in pairs(nodes) do
+            if nodename == localname then
+                skynet.send(service, name, keys, ...)
+            else
+                cluster.send(nodename, service, name, keys, ...)
+            end
+        end
+    end
 end
 
 
+function M.subscribe_event(event, nodename, service, key)
+    local local_service = skynet.self()
+    if nodename == local_nodename then
+        return skynet.call(service, "sys.subscribe_event", event, local_nodename, local_service, key)
+    end
 
+    return cluster.call(nodename, service, "sys.subscribe_event", event, local_nodename, local_service, key)
+end
+
+function M.unsubscribe_event(event, nodename, service, key)
+    local local_service = skynet.self()
+    if nodename == localnode then
+        return skynet.call(service, "sys.unsubscribe_event", event, local_nodename, local_service, key)
+    end
+
+    return cluster.call(nodename, service, "sys.unsubscribe_event", event, local_nodename, local_service, key)
+end
+
+function M._subscribe_event(event, nodename, service, key)
+    if not env.events[event] then
+        env.events[event] = {} 
+    end
+    if not env.events[event][nodename] then
+        env.events[event][nodename] = {} 
+    end
+    if not env.events[event][nodename][service] then
+        env.events[event][nodename][service] = {}
+    end
+    if not env.events[event][nodename][service][key] then
+        env.events[event][nodename][service][key] = {}
+    end
+
+    env.events[event][nodename][service][key] = true
+end
+
+function M._unsubscribe_event(event, nodename, service, key)
+    if not env.events[event] or not env.events[event][nodename] then
+        log.error(string.format("unsubscribe event %s %s %s", event, nodename, service))
+        return
+    end
+    if not env.events[event][nodename][service][key] then
+        log.error(string.format("unsubscribe event %s %s %s %s", event, nodename, service, key))
+        return
+    end
+
+    env.events[event][nodename][service][key] = nil
+end
 
 function M.init_modules()
 	require_modules()

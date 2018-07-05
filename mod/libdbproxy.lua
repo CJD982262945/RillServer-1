@@ -1,5 +1,6 @@
 local skynet = require "skynet"
 local log = require "log"
+local crc32 = require "crc32" 
 
 local runconf = require(skynet.getenv("runconfig"))
 local servconf = runconf.service
@@ -9,7 +10,7 @@ local M = {}
 local dbproxy = {}
 
 local function init()
-    log.debug("init libdbproxy")
+    log.debug("init libDbproxy")
     for i = 1, MAX_DBPROXY_COUNT do
         dbproxy[i] = string.format("dbproxy%d", i) 
     end
@@ -26,92 +27,63 @@ local function fetch_dbproxy(key)
     if type(key) == "number" then
         local id = key % MAX_DBPROXY_COUNT + 1 
         return dbproxy[id]
-    else
-        return next_dbproxy()
     end
+
+    if type(key) == "string" then
+		local code = crc32.hash(key)
+        local id = code % MAX_DBPROXY_COUNT + 1 
+        return dbproxy[id]
+    end
+
+    return next_dbproxy()
 end
 
 function M.get_accountdata(account)
     local db = fetch_dbproxy(account)
     assert(db)
-    return skynet.call(db, "lua", "dbproxy.get", "account", "account", {account=account})
+    local ret = skynet.call(db, "lua", "Dbproxy.get", "account", 
+                                                            {account=true}, 
+                                                            {account=account}
+                                                            )
+    return ret.account
 end
 
 function M.set_accountdata(account, update)
-    local db = fetch_dbproxy(uid)
+    local db = fetch_dbproxy(playerid)
     assert(db)
-    return skynet.call(db, "lua", "dbproxy.set", "account", "account", {account=account}, update)
+    local ret = skynet.call(db, "lua", "Dbproxy.set", "account", 
+                                                            {account=account},
+                                                            {account=update})
+    return table.unpack(ret.account)
 end
 
-function M.get_playerdata(cname, uid)
-    local db = fetch_dbproxy(uid)
+
+
+function M.get_playerdata(tb_cname, playerid)
+    local db = fetch_dbproxy(playerid)
     assert(db)
-    return skynet.call(db, "lua", "dbproxy.get", "game", cname, {uid=uid})
+    return skynet.call(db, "lua", "Dbproxy.get", "game", tb_cname, {playerid=playerid})
 end
 
-function M.set_playerdata(cname, uid, update)
-    local db = fetch_dbproxy(uid)
+function M.set_playerdata(playerid, update)
+    local db = fetch_dbproxy(playerid)
     assert(db)
-    return skynet.call(db, "lua", "dbproxy.set", "game", cname, {uid=uid}, update)
+    return skynet.call(db, "lua", "Dbproxy.set", "game", {playerid=playerid}, update)
 end
 
-function M.get_globaldata(cname, key)
-    local db = fetch_dbproxy(uid)
-    assert(db)
-    return skynet.call(db, "lua", "dbproxy.get", "global", cname, {name=key})
-end
 
-function M.set_globaldata(cname, key, update)
-    local db = fetch_dbproxy(uid)
-    assert(db)
-    return skynet.call(db, "lua", "dbproxy.set", "global", cname, {name=key}, update)
-end
-
-function M.add_dblog(cname, data)
-    local db = fetch_dbproxy(uid)
-    assert(db)
-    return skynet.call(db, "lua", "dbproxy.insert", "log", cname, data)
-end
-
-function M.inc_uid()
-    local db = fetch_dbproxy(1)
-    assert(db)
-    return skynet.call(db, "lua", "dbproxy.incr", "account", "account")
-end
-
---[[
-function M.findOne(key, cname, selector, field_selector)
+function M.get_globaldata(tb_cname, key)
     local db = fetch_dbproxy(key)
     assert(db)
-    return skynet.call(db, "lua", "dbproxy.findOne", cname, selector, field_selector)
+    return skynet.call(db, "lua", "Dbproxy.get", "global", tb_cname, {name=key})
 end
 
-function M.find(key, cname, selector, field_selector)
+function M.set_globaldata(tb_cname, key, update)
     local db = fetch_dbproxy(key)
     assert(db)
-    return skynet.call(db, "lua", "dbproxy.find", cname, selector, field_selector)
+    return skynet.call(db, "lua", "Dbproxy.set", "global", {name=key}, update)
 end
 
-function M.update(key, cname, selector, update, upsert)
-    local db = fetch_dbproxy(key)
-    assert(db)
-    return skynet.call(db, "lua", "dbproxy.update", cname, selector, update, upsert)
-end
-
-function M.insert(key, cname, data)
-    local db = fetch_dbproxy(key)
-    assert(db)
-    return skynet.call(db, "lua", "dbproxy.insert", cname, data)
-end
-
-function M.delete(key, cname, selector)
-    local db = fetch_dbproxy(key)
-    assert(db)
-    return skynet.call(db, "lua", "dbproxy.delete", cname, selector)
-end
-
-
---]]
 
 skynet.init(init)
 

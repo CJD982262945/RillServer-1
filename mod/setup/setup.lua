@@ -31,14 +31,25 @@ local function dir(path)
     return ret
 end
 
+local function rebuildconf(conf)
+    for k, v in pairs(conf) do
+        conf[tostring(k)] = v
+        conf[k] = nil
+    end
+    return conf
+end
+
 local reload = require "reload"
 local function init()
     local list = dir("config")
     for k, v in pairs(list) do
         log.debug("init " .. v .. " conf")
         local conf = reload.loadmod(v)
+        conf = rebuildconf(conf)
         builder.new(v, conf)
     end
+
+    dispatch.update_all()
 end
 
 
@@ -53,9 +64,10 @@ end
 function dispatch.update(name)
 	datasheet.query(name) --确保创建
 	local conf = reload.loadmod(name)
-	builder.update(name, conf)
+    conf = rebuildconf(conf)
 	builder.update(name, conf)
 	log.debug("update conf: " .. name)
 end
 
 skynet.init(init)
+

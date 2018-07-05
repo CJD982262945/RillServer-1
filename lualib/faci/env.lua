@@ -31,5 +31,8 @@ M.static = {
 
 M.dispatch = {} --为了不报错，先调试模块相关的内容
 M.forward = {}
+M.events = {}
+M.waiting_queue = {}
+
 return M
 

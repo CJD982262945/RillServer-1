@@ -1,4 +1,6 @@
-local socket = require "socket"
+local driver = require "skynet.socketdriver"
+local socket_write = assert(driver.send)
+
 local wslib = {}
 --默认fin和mask
 function wslib:send_frame(fd, opcode, data)
@@ -15,7 +17,7 @@ function wslib:send_frame(fd, opcode, data)
         frame = frame .. string.pack(">BL", 127 | mask_bit, len)
     end
     frame = frame .. data
-    socket.write(fd, frame)
+    socket_write(fd, frame)
 end
 
 function wslib:send_text(fd,data)

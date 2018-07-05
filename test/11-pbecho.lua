@@ -3,7 +3,7 @@ skynet_root = "../skynet/"
 app_root = "../"
 package.cpath = skynet_root.."luaclib/?.so;"..app_root.."luaclib/?.so"
 package.path = "./?.lua;"..skynet_root.."lualib/?.lua;"..skynet_root.."lualib/compat10/?.lua;"..skynet_root.."lualib/?/init.lua;"..app_root.."etc/?.lua;"..app_root.."lualib/?.lua;"..app_root.."config/?.lua;"..app_root.."mod/?.lua;"
-local protopack = require "protopackpb"
+local protopack = require "protopackpbc"
 local json = require "cjson"
 local tool = require "tool"
 local socket = require "client.socket"
@@ -23,7 +23,7 @@ local check = 5
 local function send(cmd, msg)
 	local str = protopack.pack(cmd, check, msg)
 	socket.send(fd, str)
-	--print("Send:", tool.dump(msg))
+	print("Send:", tool.dump(msg), cmd)
 
 	check = check + 1
 end
@@ -67,9 +67,11 @@ local function dispatch_package()
 end
 
 --Á¬½Ó
-fd = assert(socket.connect("127.0.0.1", 8799))
+fd = assert(socket.connect("127.0.0.1", 8798))
 --µÇÂ¼
-send("login.Login", {account="2q", password="11111v"})
+send("Login.MsgLogin", {Account="2q"})
+
+send("Scene.MsgEnter", {SceneId=1})
 --Ö´ÐÐ
 while true do
 	dispatch_package()
@@ -79,7 +81,7 @@ while true do
 			socket.close(1)
 			os.exit()  
 		end
-		send("example.echo", { str = msg })
+        send("Scene.MsgLeave", {SceneId=1})
 	else
 		socket.usleep(2000)
 	end

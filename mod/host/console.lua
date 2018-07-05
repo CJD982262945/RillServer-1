@@ -1,6 +1,9 @@
 local skynet = require "skynet"
 local socket = require "skynet.socket"
 local tool = require "tool"
+local httpd = require "http.httpd"
+local sockethelper = require "http.sockethelper"
+local urllib = require "http.url"
 
 local faci = require "faci.module"
 local module = faci.get_module("console")
@@ -21,13 +24,28 @@ local function send(fd, ...)
 	socket.write(fd, "\n")
 end
 		
+local function create_func(str)
+    local fun_template = [[
+        local skynet = require('skynet')
+        return %s
+    ]]
 
-local function handle(fd, cmdline)
-	local ret = skynet.call(skynet:self(), "lua", cmdline)
+    local chunk = load(string.format(fun_template, str))
+    return chunk
+end
+
+local function docmd(fd, cmdline)
+    log.info("[docmd] " .. cmdline)
+    local func = create_func(cmdline)
+    func()
 	send(fd, "ok")
 end
 
-local function main_loop(fd)
+local function show_help(fd)
+end
+
+
+local function main_loop(fd, addr)
 	socket.start(fd)
 	send(fd, "Welcome to host console")
 	local ok, err = pcall(function()
@@ -36,10 +54,14 @@ local function main_loop(fd)
 			if not cmdline then
 				break
 			end
+            if cmdline == "h" or cmdline == "help" then
+                show_help(fd)
+                return
+            end
+
 			if cmdline ~= "" then
-				handle(fd, cmdline)
+				docmd(fd, cmdline)
 			end
-			
 		end
 	end)
 	
@@ -61,6 +83,7 @@ function event.start()
 	
 	socket.start(listenfd , function(fd, addr)
 		log.info("connected %s%d", addr, fd)
-		skynet.fork(main_loop, fd)
+		skynet.fork(main_loop, fd, addr)
 	end)
 end
+

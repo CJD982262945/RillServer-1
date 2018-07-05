@@ -19,14 +19,17 @@ local function init()
 	end
 end
 
-function M.login(uid, data)
-    local game = game[math.random(1, game_num)]
-    assert(game)
-    local isok, game = skynet.call(game, "lua", "login.login", uid, data)
-    return isok, game
+function M.fetch_gamed(playerid)
+    local id = playerid % game_num + 1
+    return game[id]
 end
 
-
+function M.login(playerid, data)
+    local game = M.fetch_gamed(playerid)
+    assert(game)
+    local isok, game = skynet.call(game, "lua", "Login.login", playerid, data)
+    return isok, game
+end
 
 skynet.init(init)
 

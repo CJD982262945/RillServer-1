@@ -1,0 +1,30 @@
+syntax = "proto2";
+package Login;
+
+message MsgLogin 	
+{ 
+    optional string Account = 1;
+    optional string Password = 2;
+
+    // fn 模式
+    optional string Name = 3;
+    optional string Uid = 4;
+    optional string Ext = 5;
+    optional string Platform = 6;
+
+    optional string OsInfo = 7;
+    optional string DeviceId = 8;
+    optional string DeviceName = 9;
+    optional string Screen = 10;
+    optional string MNO = 11;
+    optional string NM = 12;
+    optional string GameVersion = 13;
+	
+	optional int64 PlayerId = 14; 
+	optional int32 Result = 15; 
+}
+
+
+
+
+

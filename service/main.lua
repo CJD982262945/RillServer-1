@@ -109,8 +109,16 @@ local function start_global()
 	end
 end
 
+local function start_scene_mgr()
+    if servconf.scene then
+        skynet.uniqueservice("scene_mgr", "scene_mgr")
+    else
+        log.debug("not scene conf, so not start scene mgr")
+    end
+end
 
 skynet.start(function()
+
 	log.debug("Server start version: " .. runconf.version)
 	--集群信息
 	cluster.reload(runconf.cluster)
@@ -120,6 +128,7 @@ skynet.start(function()
 	start_host()
 	start_console()
 	start_setup()
+    start_scene_mgr()
 	start_gateway()
 	start_login()
 	start_game()

@@ -14,28 +14,28 @@ local function init()
    end
 end
 
-function M.fetch_centerd(uid)
-    local id = uid % MAX_CENTER_COUNT + 1
+function M.fetch_centerd(playerid)
+    local id = playerid % MAX_CENTER_COUNT + 1
     return centers[id]
 end
 
 
-function M.login(uid, data)
-    local center = M.fetch_centerd(uid)
+function M.login(playerid, data)
+    local center = M.fetch_centerd(playerid)
     assert(center)
-    return skynet.call(center, "lua", "login.login", uid, data)
+    return skynet.call(center, "lua", "Login.login", playerid, data)
 end
 
-function M.register(uid, data)
-    local center = M.fetch_centerd(uid)
+function M.register(playerid, data)
+    local center = M.fetch_centerd(playerid)
     assert(center)
-    return skynet.call(center, "lua", "login.register", uid, data)
+    return skynet.call(center, "lua", "Login.register", playerid, data)
 end
 
-function M.logout(uid, key)
-    local center = M.fetch_centerd(uid)
+function M.logout(playerid, key)
+    local center = M.fetch_centerd(playerid)
     assert(center)
-    return skynet.call(center, "lua", "login.logout", uid, key)
+    return skynet.call(center, "lua", "Login.logout", playerid, key)
 end
 
 
@@ -45,19 +45,17 @@ function M.broadcast(cmd, ...)
    end
 end
 
-function M.send2client(uid, msg)
-    local center = M.fetch_centerd(uid)
+function M.send2client(playerid, msg)
+    local center = M.fetch_centerd(playerid)
     assert(center)
-	skynet.call(center, "lua", "broadcast.send2client", uid, msg)
+	skynet.call(center, "lua", "Broadcast.send2client", playerid, msg)
 end
 
-function M.broadcast2client( msg)
-	M.broadcast("broadcast.broadcast2client", msg)
+function M.broadcast2client(msg)
+	M.broadcast("Broadcast.broadcast2client", msg)
 end
 
 skynet.init(init)
-
-
 
 return M
 

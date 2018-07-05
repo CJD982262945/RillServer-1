@@ -46,6 +46,8 @@ function gateserver.start(handler)
 	end
 
 	function CMD.close()
+        local log = require "log"
+        log.debug("===close=====xxxx===")
 		assert(socket)
 		socketdriver.close(socket)
 	end
