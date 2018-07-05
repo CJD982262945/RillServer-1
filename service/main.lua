@@ -111,7 +111,8 @@ end
 
 local function start_scene_mgr()
     if servconf.scene then
-        skynet.uniqueservice("scene_mgr", "scene_mgr")
+        local p = skynet.uniqueservice("scene_mgr", "scene_mgr")
+		skynet.call(p, "lua", "start")
     else
         log.debug("not scene conf, so not start scene mgr")
     end

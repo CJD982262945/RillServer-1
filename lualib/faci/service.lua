@@ -35,9 +35,7 @@ local function init()
 	--模块
 	module.init_modules()
 	module.fire_event("awake")
-    skynet.timeout(100, function()
-	                        module.fire_event("start")
-                        end)
+	module.fire_event("start")
 	log.debug("start ok "..name.."...")
 end
 
